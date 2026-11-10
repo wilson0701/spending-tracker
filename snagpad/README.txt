@@ -1,4 +1,4 @@
-SnagPad v1.1 — Offline snag / punch list
+SnagPad v1.2 — Offline snag / punch list
 =========================================
 
 QUICK START (laptop)
@@ -36,8 +36,13 @@ WORKING WITH YOUR TEAM (sharing, free, no server)
   3. The worker opens the link, or saves the file (iPhone: tap the file in WhatsApp -> Share ->
      Save to Files) and opens it via Share -> "Open .snagpad file". A preview shows what will change.
   4. The worker updates statuses / adds snags, then shares back the same way. You import it.
-  MERGE RULES: same project = merge. For each snag, the newest edit wins. New snags are added.
-  Nothing is ever deleted by an import (a snag deleted on one phone stays on the other).
+  5. When a defect is fixed, the worker opens it, adds one or more "after" photos (kept separate
+     from the original "before" photos), fills in the rectification method, and taps "Mark as Done".
+     Their name and today's date are filled in automatically.
+  MERGE RULES: same project = merge. For each snag, the newest edit wins, and the newer status
+  wins. Photos (before and after) from both phones are combined, with duplicates removed.
+  New snags are added. Nothing is ever deleted by an import (a snag deleted on one phone stays
+  on the other). Older v1.1 share files still import.
   Photos travel only in the file, not in links; a link never removes photos already on a phone.
   If two people create a new snag with the same number, the incoming one gets the next number.
   "Assigned to me" (list filter) shows snags whose "Assigned to" contains your name.
@@ -48,7 +53,13 @@ TIPS
   - "Save & add next" keeps location / trade / assignee, so walking a unit is fast.
   - Tap a photo thumbnail in a snag to mark it up (arrow, circle, pen). Undo is supported,
     and the original photo is kept, so you can re-edit later.
-  - Report tab -> tick statuses -> Print / Save PDF.  CSV opens in Excel.
+  - Report tab -> "Export project PDF" builds a PDF with a cover page (project name, date,
+    total / done / open) and one page per defect: number, description, location, priority,
+    status, before and after photos, rectification method, who rectified it and when, and
+    the date raised. Photos are downsized so the file stays reasonable. On iPhone you can
+    also use "Print project PDF" and choose Save as PDF / Save to Files. It all runs on
+    your device, with no server.  CSV still opens in Excel.
+  - The older "Print summary table" report is still there if you want a single-table list.
 
 LICENCE
   Personal and single-company internal use. Please don't resell or redistribute the files.
