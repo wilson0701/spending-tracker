@@ -1,9 +1,9 @@
-/* SnagPad v1.1 — offline snag / punch list with file/link sharing. No server, no tracking. */
+/* SnagPad v1.2 — offline snag / punch list with rectification photos and project PDF. No server, no tracking. */
 (() => {
 'use strict';
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
-const STATUSES = ['Open', 'In progress', 'Ready for inspection', 'Closed'];
-const SCOL = { 'Open': '#ef4444', 'In progress': '#f59e0b', 'Ready for inspection': '#3b82f6', 'Closed': '#10b981' };
+const STATUSES = ['Open', 'In progress', 'Ready for inspection', 'Done', 'Closed'];
+const SCOL = { 'Open': '#ef4444', 'In progress': '#f59e0b', 'Ready for inspection': '#3b82f6', 'Done': '#0f766e', 'Closed': '#10b981' };
 const PRIOS = ['Low', 'Medium', 'High', 'Critical'];
 const PCOL = { Low: '#0284c7', Medium: '#d97706', High: '#dc2626', Critical: '#7f1d1d' };
 const DEFAULT_TRADES = ['Architectural', 'Civil / Structural', 'Plastering', 'Painting', 'Tiling', 'Ceiling', 'Doors & Ironmongery', 'Windows & Glazing', 'Waterproofing', 'Plumbing', 'Electrical', 'ACMV', 'Fire Protection', 'Landscape', 'Cleaning', 'Others'];
@@ -12,7 +12,8 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const fmtD = iso => { if (!iso) return ''; const [y, m, d] = iso.slice(0, 10).split('-'); return `${d}/${m}/${y}`; };
 const fmtDT = ts => { const d = new Date(ts); return `${fmtD(new Date(ts - d.getTimezoneOffset() * 6e4).toISOString())} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
-const isOver = it => it.due && it.status !== 'Closed' && it.due < todayISO();
+const isFinished = it => it.status === 'Done' || it.status === 'Closed';
+const isOver = it => it.due && !isFinished(it) && it.due < todayISO();
 const ts = i => i.updatedAt || i.updated || i.created || 0;
 const lastBy = i => i.updatedBy ? `Last updated by ${esc(i.updatedBy)}, ${fmtDT(ts(i))}` : (i.updated || i.updatedAt) ? `Last updated ${fmtDT(ts(i))}` : `Logged ${fmtDT(i.created)}`;
 
@@ -69,7 +70,7 @@ function renderAll() { $('#projName').textContent = proj()?.name || '—'; rende
 
 function renderFilters() {
   const items = pItems();
-  const counts = { All: items.length, Active: items.filter(i => i.status !== 'Closed').length, Overdue: items.filter(isOver).length };
+  const counts = { All: items.length, Active: items.filter(i => !isFinished(i)).length, Overdue: items.filter(isOver).length };
   STATUSES.forEach(s => counts[s] = items.filter(i => i.status === s).length);
   const keys = ['Active', 'All', ...STATUSES, 'Overdue'];
   $('#statusChips').innerHTML = `<button class="chip mine ${S.filter.mine ? 'on' : ''}" data-mine="1" title="Snags whose 'Assigned to' matches My name">👤 Assigned to me <i>${S.me ? items.filter(isMine).length : '?'}</i></button>` + keys.map(k => `<button class="chip ${S.filter.status === k ? 'on' : ''}" data-k="${esc(k)}">${k === 'Overdue' ? '⚠ ' : ''}${esc(k)} <i>${counts[k]}</i></button>`).join('');
@@ -81,7 +82,7 @@ function renderFilters() {
 function filtered() {
   const f = S.filter, q = f.q.trim().toLowerCase();
   let arr = pItems().filter(i => {
-    if (f.status === 'Active' && i.status === 'Closed') return false;
+    if (f.status === 'Active' && isFinished(i)) return false;
     if (STATUSES.includes(f.status) && i.status !== f.status) return false;
     if (f.status === 'Overdue' && !isOver(i)) return false;
     if (f.trade && i.trade !== f.trade) return false;
@@ -104,15 +105,17 @@ function renderList() {
   $('#empty').hidden = pItems().length > 0;
   if (pItems().length && !arr.length) { $('#list').innerHTML = `<div class="empty"><p>No snags match these filters.</p></div>`; return; }
   $('#list').innerHTML = arr.map(i => {
-    const th = i.photos?.length ? S.thumbs.get(i.photos[0]) : null;
+    const nPh = (i.photos || []).length + (i.afterPhotos || []).length;
+    const th = (i.photos?.length ? S.thumbs.get(i.photos[0]) : null) || (i.afterPhotos?.length ? S.thumbs.get(i.afterPhotos[0]) : null);
     const next = STATUSES[(STATUSES.indexOf(i.status) + 1) % STATUSES.length];
+    const nextLabel = next === 'Ready for inspection' ? 'Ready' : next;
     return `<article class="item" data-id="${i.id}" style="--sc:${SCOL[i.status]}">
-      <div class="thumb" style="${th ? `background-image:url(${th})` : ''}">${th ? (i.photos.length > 1 ? `<em>${i.photos.length}</em>` : '') : '📷'}</div>
+      <div class="thumb" style="${th ? `background-image:url(${th})` : ''}">${th ? (nPh > 1 ? `<em>${nPh}</em>` : '') : '📷'}</div>
       <div class="ibody">
-        <div class="itop"><span class="iid">${esc(i.ref)}</span>${i.status !== 'Closed' ? `<button class="quick" data-next="${i.id}" title="Move to ${next}">→ ${esc(next === 'Ready for inspection' ? 'Ready' : next)}</button>` : ''}</div>
+        <div class="itop"><span class="iid">${esc(i.ref)}</span>${i.status !== 'Closed' ? `<button class="quick" data-next="${i.id}" title="Move to ${next}">→ ${esc(nextLabel)}</button>` : ''}</div>
         <div class="ititle">${esc(i.title)}</div>
         <div class="imeta">${esc([i.location, i.trade, i.assignee].filter(Boolean).join(' · ') || 'No location')}</div>
-        <div class="badges"><span class="b st">${esc(i.status)}</span><span class="b p-${i.priority}">${i.priority}</span>${i.due ? `<span class="b ${isOver(i) ? 'over' : ''}">${isOver(i) ? 'Overdue ' : 'Due '}${fmtD(i.due)}</span>` : ''}</div>
+        <div class="badges"><span class="b st">${esc(i.status)}</span><span class="b p-${i.priority}">${i.priority}</span>${i.afterPhotos?.length ? `<span class="b after">After ${i.afterPhotos.length}</span>` : ''}${i.due ? `<span class="b ${isOver(i) ? 'over' : ''}">${isOver(i) ? 'Overdue ' : 'Due '}${fmtD(i.due)}</span>` : ''}</div>
         <div class="iby">${lastBy(i)}</div>
       </div></article>`;
   }).join('');
@@ -165,7 +168,7 @@ async function buildReport() {
   const items = pItems().filter(i => sts.includes(i.status)).sort((a, b) => (a.location || '').localeCompare(b.location || '', undefined, { numeric: true }) || a.seq - b.seq);
   const all_ = pItems(), cnt = s => all_.filter(i => i.status === s).length;
   const photoCache = {};
-  if (wantPh) for (const i of items) for (const id of (i.photos || [])) { const ph = await get('photos', id); if (ph) photoCache[id] = ph.full; }
+  if (wantPh) for (const i of items) for (const id of [...(i.photos || []), ...(i.afterPhotos || [])]) { const ph = await get('photos', id); if (ph) photoCache[id] = ph.full; }
   const html = `<div class="rep">
     <div class="rhead"><div><h1>Snag List Report</h1><div class="rmeta"><b>${esc(p.name)}</b>${p.client ? ` · ${esc(p.client)}` : ''}${p.address ? `<br>${esc(p.address)}` : ''}</div></div>
     <div class="rmeta" style="text-align:right">Date: ${fmtD(todayISO())}${p.by ? `<br>Inspected by: ${esc(p.by)}` : ''}<br>Showing: ${esc(sts.join(', ') || 'none')}</div></div>
@@ -176,7 +179,9 @@ async function buildReport() {
     ${(wantPh || wantNotes) ? items.filter(i => (wantPh && i.photos?.length) || (wantNotes && i.notes)).map(i => `<div class="ritem"><h3>${esc(i.ref)} — ${esc(i.title)}</h3>
       <div class="rmeta">${esc([i.location, i.trade, i.priority, i.status, i.assignee && 'Assigned: ' + i.assignee].filter(Boolean).join(' · '))} · Logged ${fmtDT(i.created)}</div>
       ${wantNotes && i.notes ? `<p style="margin:6px 0 0;font-size:12px;white-space:pre-wrap">${esc(i.notes)}</p>` : ''}
-      ${wantPh && i.photos?.length ? `<div class="rph">${i.photos.map(id => photoCache[id] ? `<img src="${photoCache[id]}" alt="">` : '').join('')}</div>` : ''}</div>`).join('') : ''}
+      ${i.rectMethod ? `<p style="margin:6px 0 0;font-size:12px"><b>Rectification method:</b> ${esc(i.rectMethod)}</p>` : ''}
+      ${i.rectifiedBy || i.rectifiedAt ? `<p class="rmeta">Rectified by ${esc(i.rectifiedBy || '—')} · ${fmtD(i.rectifiedAt) || '—'}</p>` : ''}
+      ${wantPh && ((i.photos?.length) || (i.afterPhotos?.length)) ? `<div class="rph">${(i.photos||[]).map(id => photoCache[id] ? `<img src="${photoCache[id]}" alt="Before">` : '').join('')}${(i.afterPhotos||[]).map(id => photoCache[id] ? `<img src="${photoCache[id]}" alt="After">` : '').join('')}</div>` : ''}</div>`).join('') : ''}
     ${wantSig ? `<div class="sig"><div>Inspected by (name, signature, date)</div><div>Acknowledged by contractor (name, signature, date)</div></div>` : ''}
     <div class="foot">Generated with SnagPad · ${fmtDT(Date.now())}</div></div>`;
   $('#reportPreview').innerHTML = html;
@@ -200,11 +205,15 @@ function fillDatalists() {
 
 function openItem(item, carry) {
   const isNew = !item;
-  cur = item ? structuredClone(item) : { id: uid(), projectId: S.pid, title: '', location: carry?.location || '', trade: carry?.trade || '', assignee: carry?.assignee || '', priority: carry?.priority || 'Medium', status: 'Open', due: carry?.due || '', notes: '', photos: [], created: Date.now(), _new: true };
+  cur = item ? structuredClone(item) : { id: uid(), projectId: S.pid, title: '', location: carry?.location || '', trade: carry?.trade || '', assignee: carry?.assignee || '', priority: carry?.priority || 'Medium', status: 'Open', due: carry?.due || '', notes: '', photos: [], afterPhotos: [], rectMethod: '', rectifiedBy: '', rectifiedAt: '', created: Date.now(), _new: true };
+  if (!Array.isArray(cur.photos)) cur.photos = [];
+  if (!Array.isArray(cur.afterPhotos)) cur.afterPhotos = [];
+  cur.rectMethod ||= ''; cur.rectifiedBy ||= ''; cur.rectifiedAt ||= '';
   cur._added = []; cur._removed = [];
   $('#itemTitle').textContent = isNew ? 'New snag' : cur.ref;
   $('#iTitle').value = cur.title; $('#iLoc').value = cur.location; $('#iTrade').value = cur.trade; $('#iWho').value = cur.assignee;
   $('#iDue').value = cur.due; $('#iNotes').value = cur.notes;
+  $('#iRectMethod').value = cur.rectMethod; $('#iRectBy').value = cur.rectifiedBy; $('#iRectAt').value = cur.rectifiedAt;
   segSet($('#iPrio'), cur.priority); segSet($('#iStatus'), cur.status);
   $('#iMeta').textContent = isNew ? '' : `Logged ${fmtDT(cur.created)}${(cur.updated || cur.updatedAt) ? ' · Last updated ' + (cur.updatedBy ? 'by ' + cur.updatedBy + ', ' : '') + fmtDT(ts(cur)) : ''}${cur.closedAt ? ' · Closed ' + fmtDT(cur.closedAt) : ''}`;
   $('#itemDelete').hidden = isNew; $('#itemDup').hidden = isNew;
@@ -212,17 +221,22 @@ function openItem(item, carry) {
   const d = $('#dlgItem'); if (!d.open) d.showModal();
   if (isNew) setTimeout(() => $('#iTitle').focus(), 50);
 }
-function renderPhotoStrip() {
-  $$('#photoStrip .ph').forEach(n => n.remove());
-  const add = $('#photoStrip .addphoto');
-  cur.photos.forEach((id, n) => {
+function fillStrip(sel, ids, label) {
+  $$(sel + ' .ph').forEach(n => n.remove());
+  const add = $(sel + ' .addphoto');
+  (ids || []).forEach((id, n) => {
     const d = document.createElement('div'); d.className = 'ph'; d.dataset.id = id;
-    d.style.backgroundImage = `url(${S.thumbs.get(id)})`; d.innerHTML = `<span>✎ ${n + 1}</span>`;
+    d.style.backgroundImage = `url(${S.thumbs.get(id)})`; d.innerHTML = `<span>✎ ${label} ${n + 1}</span>`;
     add.before(d);
   });
 }
+function renderPhotoStrip() {
+  fillStrip('#photoStrip', cur.photos, 'Before');
+  fillStrip('#afterStrip', cur.afterPhotos, 'After');
+}
+function photoListOf(id) { return cur.photos.includes(id) ? cur.photos : cur.afterPhotos; }
 function readForm() {
-  Object.assign(cur, { title: $('#iTitle').value.trim(), location: $('#iLoc').value.trim(), trade: $('#iTrade').value.trim(), assignee: $('#iWho').value.trim(), due: $('#iDue').value, notes: $('#iNotes').value.trim(), priority: $('#iPrio').dataset.v, status: $('#iStatus').dataset.v });
+  Object.assign(cur, { title: $('#iTitle').value.trim(), location: $('#iLoc').value.trim(), trade: $('#iTrade').value.trim(), assignee: $('#iWho').value.trim(), due: $('#iDue').value, notes: $('#iNotes').value.trim(), priority: $('#iPrio').dataset.v, status: $('#iStatus').dataset.v, rectMethod: $('#iRectMethod').value.trim(), rectifiedBy: $('#iRectBy').value.trim(), rectifiedAt: $('#iRectAt').value });
 }
 async function saveItem() {
   readForm();
@@ -232,6 +246,11 @@ async function saveItem() {
   else cur.updated = Date.now();
   cur.updatedAt = cur.updated || Date.now(); cur.updatedBy = S.me || '';
   const old = S.items.find(i => i.id === cur.id);
+  if (cur.status === 'Done' && (!old || old.status !== 'Done')) {
+    if (!cur.rectifiedBy) cur.rectifiedBy = S.me || '';
+    if (!cur.rectifiedAt) cur.rectifiedAt = todayISO();
+    $('#iRectBy').value = cur.rectifiedBy; $('#iRectAt').value = cur.rectifiedAt;
+  }
   if (cur.status === 'Closed' && (!old || old.status !== 'Closed')) cur.closedAt = Date.now();
   if (cur.status !== 'Closed') delete cur.closedAt;
   for (const id of cur._removed) { await del('photos', id); S.thumbs.delete(id); }
@@ -252,13 +271,14 @@ function scaleTo(im, max, q = .82) {
   const c = document.createElement('canvas'); c.width = Math.round((im.naturalWidth || im.width) * k); c.height = Math.round((im.naturalHeight || im.height) * k);
   c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', q);
 }
-async function addPhotos(files) {
+async function addPhotos(files, dest = 'photos') {
+  const list = dest === 'after' ? cur.afterPhotos : cur.photos;
   for (const f of files) {
     try {
       const im = await loadImg(await fileToURL(f));
       const full = scaleTo(im, 1600), thumb = scaleTo(im, 240, .7);
-      const ph = { id: uid(), orig: full, full, thumb, strokes: [] };
-      await put('photos', ph); S.thumbs.set(ph.id, thumb); cur.photos.push(ph.id); cur._added.push(ph.id);
+      const ph = { id: uid(), orig: full, full, thumb, strokes: [], kind: dest === 'after' ? 'after' : 'before' };
+      await put('photos', ph); S.thumbs.set(ph.id, thumb); list.push(ph.id); cur._added.push(ph.id);
     } catch (e) { toast('Could not read that image'); }
   }
   renderPhotoStrip();
@@ -308,7 +328,7 @@ function initMarkup() {
   $('#markCancel').onclick = () => $('#dlgMark').close();
   $('#markDelPhoto').onclick = () => {
     if (!confirm('Remove this photo from the snag?')) return;
-    cur.photos = cur.photos.filter(x => x !== M.ph.id); cur._removed.push(M.ph.id); renderPhotoStrip(); $('#dlgMark').close();
+    cur.photos = cur.photos.filter(x => x !== M.ph.id); cur.afterPhotos = cur.afterPhotos.filter(x => x !== M.ph.id); cur._removed.push(M.ph.id); renderPhotoStrip(); $('#dlgMark').close();
   };
   $('#markSave').onclick = async () => {
     const out = document.createElement('canvas'); out.width = M.img.naturalWidth; out.height = M.img.naturalHeight; drawMark(out);
@@ -318,6 +338,189 @@ function initMarkup() {
   };
 }
 
+
+/* ---------- Project PDF (cover + one page per defect). Offline, client-side. ---------- */
+const pdfCounts = items => {
+  const total = items.length, done = items.filter(isFinished).length;
+  return { total, done, open: total - done };
+};
+async function shrinkPhoto(id, max = 900, q = .7) {
+  const ph = await get('photos', id); if (!ph?.full) return null;
+  try { return scaleTo(await loadImg(ph.full), max, q); } catch { return ph.full; }
+}
+async function collectProjectReport(items) {
+  const rows = [];
+  for (const i of items) {
+    const before = [], after = [];
+    for (const id of (i.photos || []).slice(0, 4)) { const u = await shrinkPhoto(id); if (u) before.push(u); }
+    for (const id of (i.afterPhotos || []).slice(0, 4)) { const u = await shrinkPhoto(id); if (u) after.push(u); }
+    rows.push({ i, before, after });
+  }
+  return rows;
+}
+function projectPdfHtml(p, items, rows) {
+  const c = pdfCounts(items);
+  const cover = `<section class="pdf-page pdf-cover">
+    <div class="rmeta">SNAG / PUNCH LIST REPORT</div>
+    <h1>${esc(p.name || 'Project')}</h1>
+    <div class="pname">${esc(p.client || '')}</div>
+    <div class="pmeta">${esc(p.address || '')}${p.by ? `<br>Inspected by ${esc(p.by)}` : ''}<br>Date: ${fmtD(todayISO())}</div>
+    <div class="pdf-counts">
+      <div><b>${c.total}</b><span>Total</span></div>
+      <div><b>${c.done}</b><span>Done</span></div>
+      <div><b>${c.open}</b><span>Open</span></div>
+    </div>
+    <div class="foot">Generated with SnagPad v1.2 · ${fmtDT(Date.now())}</div>
+  </section>`;
+  const pages = rows.map(({ i, before, after }) => {
+    const imgs = (arr, title) => `<div><h3>${title}${arr.length ? '' : ' — none'}</h3>${arr.map(src => `<img src="${src}" alt="">`).join('')}</div>`;
+    return `<section class="pdf-page pdf-defect">
+      <h2>${esc(i.ref)} — ${esc(i.title)}</h2>
+      <div class="pdf-kv">
+        <div><b>Location</b>${esc(i.location || '—')}</div>
+        <div><b>Trade</b>${esc(i.trade || '—')}</div>
+        <div><b>Priority / Status</b>${esc(i.priority)} · ${esc(i.status)}</div>
+        <div><b>Assigned to</b>${esc(i.assignee || '—')}</div>
+        <div><b>Date raised</b>${fmtDT(i.created)}</div>
+        <div><b>Rectified by / date</b>${esc(i.rectifiedBy || '—')} · ${fmtD(i.rectifiedAt) || '—'}</div>
+      </div>
+      <div class="pdf-method"><b>Description</b><div>${esc(i.title)}</div></div>
+      ${i.rectMethod ? `<div class="pdf-method"><b>Rectification method</b><div>${esc(i.rectMethod)}</div></div>` : `<div class="pdf-method"><b>Rectification method</b><div>—</div></div>`}
+      <div class="pdf-cols">${imgs(before, 'Before')}${imgs(after, 'After')}</div>
+    </section>`;
+  }).join('');
+  return `<div class="pdfdoc">${cover}${pages}</div>`;
+}
+async function buildProjectPrintHtml() {
+  const p = proj(); if (!p) return '';
+  const items = pItems().slice().sort((a, b) => (a.seq || 0) - (b.seq || 0) || (a.ref || '').localeCompare(b.ref || ''));
+  const rows = await collectProjectReport(items);
+  return projectPdfHtml(p, items, rows);
+}
+async function printProjectPdf() {
+  const html = await buildProjectPrintHtml();
+  const root = $('#printRoot');
+  root.classList.add('pdf-mode');
+  root.innerHTML = html;
+  const st = $('#pdfStatus'); if (st) st.textContent = 'Print dialog opening… On iPhone choose Save as PDF or Save to Files.';
+  setTimeout(() => window.print(), 250);
+}
+function jsPdfCtor() { return window.jspdf?.jsPDF || window.jsPDF || null; }
+function fitBox(iw, ih, maxW, maxH) {
+  const k = Math.min(maxW / Math.max(1, iw), maxH / Math.max(1, ih), 1);
+  return [Math.max(1, iw * k), Math.max(1, ih * k)];
+}
+function imgSize(dataUrl) {
+  return new Promise(res => { const im = new Image(); im.onload = () => res([im.naturalWidth || im.width, im.naturalHeight || im.height]); im.onerror = () => res([4, 3]); im.src = dataUrl; });
+}
+async function buildProjectPdfBlob() {
+  const PDF = jsPdfCtor(); if (!PDF) throw new Error('jsPDF is not available');
+  const p = proj(); if (!p) throw new Error('No project');
+  const items = pItems().slice().sort((a, b) => (a.seq || 0) - (b.seq || 0) || (a.ref || '').localeCompare(b.ref || ''));
+  const rows = await collectProjectReport(items);
+  const c = pdfCounts(items);
+  const doc = new PDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+  const W = 210, H = 297, m = 14, maxW = W - m * 2;
+  const line = (text, x, y, size = 11, style = 'normal', color = [15, 23, 42]) => {
+    doc.setFont('helvetica', style); doc.setFontSize(size); doc.setTextColor(...color);
+    const lines = doc.splitTextToSize(String(text || '—'), maxW - (x - m));
+    doc.text(lines, x, y);
+    return y + lines.length * (size * 0.4 + 1.2);
+  };
+  // Cover
+  doc.setFillColor(15, 23, 42); doc.rect(0, 0, W, 48, 'F');
+  doc.setTextColor(251, 191, 36); doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+  doc.text('SNAG / PUNCH LIST REPORT', m, 22);
+  doc.setTextColor(255, 255, 255); doc.setFontSize(22);
+  const nameLines = doc.splitTextToSize(p.name || 'Project', maxW);
+  doc.text(nameLines, m, 34);
+  let y = 62;
+  if (p.client) y = line(p.client, m, y, 13, 'bold');
+  if (p.address) y = line(p.address, m, y, 11, 'normal', [71, 85, 105]);
+  if (p.by) y = line('Inspected by ' + p.by, m, y, 11, 'normal', [71, 85, 105]);
+  y = line('Date: ' + fmtD(todayISO()), m, y + 2, 12, 'bold');
+  y += 8;
+  const boxes = [['Total', c.total], ['Done', c.done], ['Open', c.open]];
+  boxes.forEach((b, i) => {
+    const x = m + i * 58;
+    doc.setDrawColor(15, 23, 42); doc.setLineWidth(0.4); doc.roundedRect(x, y, 52, 24, 2, 2, 'S');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(15, 23, 42); doc.text(String(b[1]), x + 6, y + 13);
+    doc.setFontSize(9); doc.setTextColor(71, 85, 105); doc.text(b[0].toUpperCase(), x + 6, y + 20);
+  });
+  doc.setFontSize(9); doc.setTextColor(148, 163, 184);
+  doc.text(`Generated with SnagPad v1.2  ·  ${fmtDT(Date.now())}`, m, H - 12);
+
+  const addImgs = async (arr, x, y0, colW, maxH) => {
+    let yy = y0;
+    for (const src of arr) {
+      const [iw, ih] = await imgSize(src);
+      const [w, h] = fitBox(iw, ih, colW, Math.min(maxH, 62));
+      if (yy + h > H - m) break;
+      try { doc.addImage(src, 'JPEG', x, yy, w, h, undefined, 'FAST'); } catch { /* skip a bad image */ }
+      yy += h + 3;
+    }
+    return yy;
+  };
+
+  for (const { i, before, after } of rows) {
+    doc.addPage();
+    doc.setFillColor(15, 23, 42); doc.rect(0, 0, W, 16, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+    doc.text(doc.splitTextToSize(`${i.ref}  —  ${i.title || ''}`, maxW), m, 10);
+    let yy = 24;
+    const kv = [
+      ['Location', i.location || '—'], ['Trade', i.trade || '—'],
+      ['Priority / Status', `${i.priority || '—'}  ·  ${i.status || '—'}`],
+      ['Assigned to', i.assignee || '—'],
+      ['Date raised', fmtDT(i.created)],
+      ['Rectified by / date', `${i.rectifiedBy || '—'}  ·  ${fmtD(i.rectifiedAt) || '—'}`]
+    ];
+    const col = (maxW - 6) / 2;
+    kv.forEach((row, n) => {
+      const x = m + (n % 2) * (col + 6), yk = yy + Math.floor(n / 2) * 12;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(71, 85, 105);
+      doc.text(row[0].toUpperCase(), x, yk);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(15, 23, 42);
+      doc.text(doc.splitTextToSize(String(row[1]), col), x, yk + 5);
+    });
+    yy += 12 * Math.ceil(kv.length / 2) + 4;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(71, 85, 105); doc.text('DESCRIPTION', m, yy);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(15, 23, 42);
+    const dLines = doc.splitTextToSize(i.title || '—', maxW);
+    doc.text(dLines, m, yy + 5); yy += 5 + dLines.length * 5 + 3;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(71, 85, 105); doc.text('RECTIFICATION METHOD', m, yy);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(15, 23, 42);
+    const mLines = doc.splitTextToSize(i.rectMethod || '—', maxW);
+    doc.text(mLines, m, yy + 5); yy += 5 + mLines.length * 5 + 6;
+    const colW = (maxW - 8) / 2, imgTop = yy;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(71, 85, 105);
+    doc.text(before.length ? 'BEFORE' : 'BEFORE — none', m, imgTop);
+    doc.text(after.length ? 'AFTER' : 'AFTER — none', m + colW + 8, imgTop);
+    await addImgs(before, m, imgTop + 4, colW, H - m - (imgTop + 4));
+    await addImgs(after, m + colW + 8, imgTop + 4, colW, H - m - (imgTop + 4));
+  }
+  return { blob: doc.output('blob'), pages: 1 + rows.length, name: `snagpad-${slug(p.name)}-${todayISO()}.pdf`, counts: c, defects: rows.length };
+}
+async function exportProjectPdf() {
+  const st = $('#pdfStatus'); if (st) st.textContent = 'Building PDF…';
+  try {
+    if (!jsPdfCtor()) { if (st) st.textContent = 'PDF library missing — opening the print dialog instead.'; return printProjectPdf(); }
+    const { blob, pages, name, counts } = await buildProjectPdfBlob();
+    const file = new File([blob], name, { type: 'application/pdf' });
+    if (navigator.canShare && navigator.share) {
+      try { if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); if (st) st.textContent = `Shared ${name} (${pages} pages: cover + ${pages - 1} defect${pages === 2 ? '' : 's'}).`; toast('PDF shared'); return; } }
+      catch (e) { if (e && e.name === 'AbortError') { if (st) st.textContent = 'Share cancelled.'; return; } }
+    }
+    download(name, blob, 'application/pdf');
+    if (st) st.textContent = `Downloaded ${name} — ${pages} pages (cover + ${counts.total} defect${counts.total === 1 ? '' : 's'}; ${counts.done} done, ${counts.open} open).`;
+    toast('PDF downloaded');
+  } catch (e) {
+    if (st) st.textContent = 'Could not build the PDF file. Opening the print dialog instead.';
+    toast('Opening print instead');
+    return printProjectPdf();
+  }
+}
+
 /* ---------- Export ---------- */
 function download(name, data, type) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type })); a.download = name;
@@ -325,13 +528,13 @@ function download(name, data, type) {
 }
 const slug = s => (s || 'project').replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'project';
 function makeCSV() {
-  const cols = ['ID', 'Description', 'Location', 'Trade', 'Priority', 'Status', 'Assigned to', 'Due (dd/mm/yyyy)', 'Logged', 'Closed', 'Last updated', 'Updated by', 'Notes', 'Photos'];
+  const cols = ['ID', 'Description', 'Location', 'Trade', 'Priority', 'Status', 'Assigned to', 'Due (dd/mm/yyyy)', 'Logged', 'Closed', 'Last updated', 'Updated by', 'Notes', 'Before photos', 'After photos', 'Rectification method', 'Rectified by', 'Date rectified (dd/mm/yyyy)'];
   const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const rows = pItems().sort((a, b) => a.seq - b.seq).map(i => [i.ref, i.title, i.location, i.trade, i.priority, i.status, i.assignee, fmtD(i.due), fmtDT(i.created), i.closedAt ? fmtDT(i.closedAt) : '', fmtDT(ts(i)), i.updatedBy || '', i.notes, (i.photos || []).length]);
+  const rows = pItems().sort((a, b) => a.seq - b.seq).map(i => [i.ref, i.title, i.location, i.trade, i.priority, i.status, i.assignee, fmtD(i.due), fmtDT(i.created), i.closedAt ? fmtDT(i.closedAt) : '', fmtDT(ts(i)), i.updatedBy || '', i.notes, (i.photos || []).length, (i.afterPhotos || []).length, i.rectMethod || '', i.rectifiedBy || '', fmtD(i.rectifiedAt)]);
   return '\ufeff' + [cols, ...rows].map(r => r.map(q).join(',')).join('\r\n');
 }
 async function backup() {
-  const data = { app: 'SnagPad', version: 1, exported: new Date().toISOString(), projects: await all('projects'), items: await all('items'), photos: await all('photos') };
+  const data = { app: 'SnagPad', version: 2, exported: new Date().toISOString(), projects: await all('projects'), items: await all('items'), photos: await all('photos') };
   download(`snagpad-backup-${todayISO()}.json`, JSON.stringify(data), 'application/json'); toast('Backup downloaded');
 }
 async function restore(file) {
@@ -347,7 +550,7 @@ async function restore(file) {
 }
 
 /* ---------- Sharing (no server: a .snagpad file or a #link, sent by WhatsApp / email / AirDrop) ---------- */
-const SHARE_KEYS = ['title', 'location', 'trade', 'assignee', 'priority', 'status', 'due', 'notes', 'updatedBy'];
+const SHARE_KEYS = ['title', 'location', 'trade', 'assignee', 'priority', 'status', 'due', 'notes', 'updatedBy', 'rectMethod', 'rectifiedBy', 'rectifiedAt'];
 const LINK_WARN = 2000, LINK_MAX = 60000;
 const b64u = buf => { const a = new Uint8Array(buf); let s = ''; for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
 const unb64u = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const b = atob(s), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; };
@@ -359,14 +562,14 @@ async function setMe(v) { S.me = (v || '').trim().slice(0, 40); await put('meta'
 
 async function buildPayload(withPhotos) {
   const p = { ...proj() }, items = pItems().map(i => ({ ...i }));
-  const d = { app: 'SnagPad', kind: 'share', version: 2, exported: Date.now(), from: S.me || '', project: p, items };
+  const d = { app: 'SnagPad', kind: 'share', version: 3, exported: Date.now(), from: S.me || '', project: p, items };
   if (withPhotos) {
-    const ids = [...new Set(items.flatMap(i => i.photos || []))];
+    const ids = [...new Set(items.flatMap(i => [...(i.photos || []), ...(i.afterPhotos || [])]))];
     d.photos = (await Promise.all(ids.map(id => get('photos', id)))).filter(Boolean);
   } else {
     d.noPhotos = true;
     if ((p.trades || []).join('|') === DEFAULT_TRADES.join('|')) delete p.trades;
-    d.items = items.map(i => { const o = {}; for (const [k, v] of Object.entries(i)) if (v !== '' && v != null && k !== 'projectId' && k !== 'photos') o[k] = v; if (i.photos?.length) o.np = i.photos.length; return o; });
+    d.items = items.map(i => { const o = {}; for (const [k, v] of Object.entries(i)) if (v !== '' && v != null && k !== 'projectId' && k !== 'photos' && k !== 'afterPhotos') o[k] = v; if (i.photos?.length) o.np = i.photos.length; if (i.afterPhotos?.length) o.nap = i.afterPhotos.length; return o; });
   }
   return d;
 }
@@ -416,8 +619,9 @@ function validShare(d) {
 }
 function normIn(raw, d, pid) {
   const it = { ...raw, projectId: pid }; delete it.np;
-  if (d.noPhotos) { for (const k of SHARE_KEYS) if (it[k] == null) it[k] = ''; delete it.photos; }
+  if (d.noPhotos) { for (const k of SHARE_KEYS) if (it[k] == null) it[k] = ''; delete it.photos; delete it.afterPhotos; }
   if (it.status !== 'Closed') delete it.closedAt;
+  if (!Array.isArray(it.afterPhotos) && !d.noPhotos) it.afterPhotos = it.afterPhotos || [];
   return it;
 }
 function diffShare(d) {
@@ -455,16 +659,32 @@ async function applyShare(d) {
   const have = new Set(await req(tx('photos').getAllKeys()));
   const refs = new Map(S.items.filter(i => i.projectId === p.id).map(i => [i.ref, i.id]));
   let add = 0, upd = 0, renum = 0;
+  const unionPh = (a, b) => [...new Set([...(a || []), ...(b || [])])].filter(id => have.has(id));
+  const fillRect = (keep, other) => {
+    if (!keep.rectMethod && other.rectMethod) keep.rectMethod = other.rectMethod;
+    if (!keep.rectifiedBy && other.rectifiedBy) keep.rectifiedBy = other.rectifiedBy;
+    if (!keep.rectifiedAt && other.rectifiedAt) keep.rectifiedAt = other.rectifiedAt;
+    return keep;
+  };
   for (const raw of d.items) {
     const it = normIn(raw, d, p.id), l = S.items.find(x => x.id === it.id);
     if (!l) {
       it.photos = (it.photos || []).filter(id => have.has(id));
+      it.afterPhotos = (it.afterPhotos || []).filter(id => have.has(id));
       if (refs.has(it.ref) && refs.get(it.ref) !== it.id) { p.counter++; it.seq = p.counter; it.ref = `${p.prefix || 'S'}-${String(p.counter).padStart(3, '0')}`; renum++; }
       refs.set(it.ref, it.id); await put('items', it); add++;
-    } else if (ts(it) > ts(l)) {
-      const merged = { ...it, photos: [...new Set([...(it.photos || []), ...(l.photos || [])])].filter(id => have.has(id)) };
-      if (merged.status !== 'Closed') delete merged.closedAt;
-      await put('items', merged); upd++;
+    } else {
+      const incomingNewer = ts(it) > ts(l);
+      const base = incomingNewer ? { ...l, ...it } : { ...it, ...l };
+      // newer status wins (tied to the newer record's timestamp)
+      base.status = incomingNewer ? (it.status || l.status) : (l.status || it.status);
+      base.photos = unionPh(it.photos, l.photos);
+      base.afterPhotos = unionPh(it.afterPhotos, l.afterPhotos);
+      fillRect(base, incomingNewer ? l : it);
+      if (base.status !== 'Closed') delete base.closedAt;
+      const changed = incomingNewer || base.photos.length !== (l.photos || []).length || base.afterPhotos.length !== (l.afterPhotos || []).length
+        || base.rectMethod !== (l.rectMethod || '') || base.rectifiedBy !== (l.rectifiedBy || '') || base.rectifiedAt !== (l.rectifiedAt || '');
+      if (incomingNewer || changed) { await put('items', base); if (incomingNewer) upd++; }
     }
   }
   await put('projects', p);
@@ -559,7 +779,7 @@ function bind() {
     if (nx) {
       e.stopPropagation();
       const it = S.items.find(i => i.id === nx.dataset.next);
-      it.status = STATUSES[STATUSES.indexOf(it.status) + 1]; it.updated = it.updatedAt = Date.now(); it.updatedBy = S.me || ''; if (it.status === 'Closed') it.closedAt = Date.now();
+      it.status = STATUSES[STATUSES.indexOf(it.status) + 1]; it.updated = it.updatedAt = Date.now(); it.updatedBy = S.me || ''; if (it.status === 'Done') { if (!it.rectifiedBy) it.rectifiedBy = S.me || ''; if (!it.rectifiedAt) it.rectifiedAt = todayISO(); } if (it.status === 'Closed') it.closedAt = Date.now();
       await put('items', it); toast(`${it.ref} → ${it.status}`); renderList(); renderFilters(); return;
     }
     const card = e.target.closest('.item'); if (card) openItem(S.items.find(i => i.id === card.dataset.id));
@@ -569,15 +789,23 @@ function bind() {
   $('#btnSample').onclick = loadSample;
 
   segInit($('#iPrio'), PRIOS, PCOL); segInit($('#iStatus'), STATUSES, SCOL);
-  $('#photoInput').onchange = e => { addPhotos([...e.target.files]); e.target.value = ''; };
-  $('#photoStrip').onclick = e => { const ph = e.target.closest('.ph'); if (ph) openMarkup(ph.dataset.id); };
+  $('#photoInput').onchange = e => { addPhotos([...e.target.files], 'photos'); e.target.value = ''; };
+  $('#afterInput').onchange = e => { addPhotos([...e.target.files], 'after'); e.target.value = ''; };
+  const openPh = e => { const ph = e.target.closest('.ph'); if (ph) openMarkup(ph.dataset.id); };
+  $('#photoStrip').onclick = openPh; $('#afterStrip').onclick = openPh;
+  $('#btnMarkDone').onclick = async () => {
+    segSet($('#iStatus'), 'Done');
+    if (!$('#iRectBy').value.trim()) $('#iRectBy').value = S.me || '';
+    if (!$('#iRectAt').value) $('#iRectAt').value = todayISO();
+    if (await saveItem()) { cur = null; $('#dlgItem').close(); toast('Marked as Done'); }
+  };
   $('#itemForm').onsubmit = async e => { e.preventDefault(); if (await saveItem()) { cur = null; $('#dlgItem').close(); } };
   $('#itemSaveNext').onclick = async () => { const r = await saveItem(); if (r) openItem(null, r); };
   $('#itemCancel').onclick = async () => { await discardItem(); $('#dlgItem').close(); };
   $('#dlgItem').addEventListener('cancel', () => discardItem());
   $('#itemDelete').onclick = async () => {
     if (!confirm(`Delete ${cur.ref}? This cannot be undone.`)) return;
-    for (const id of cur.photos.concat(cur._removed)) { await del('photos', id); S.thumbs.delete(id); }
+    for (const id of cur.photos.concat(cur.afterPhotos || [], cur._removed)) { await del('photos', id); S.thumbs.delete(id); }
     await del('items', cur.id); S.items = S.items.filter(i => i.id !== cur.id); cur = null; $('#dlgItem').close(); renderAll(); toast('Deleted');
   };
   $('#itemDup').onclick = async () => { const r = await saveItem(); if (!r) return; openItem(null, r); $('#iTitle').value = r.title; $('#iNotes').value = r.notes; toast('Duplicated — edit and save'); };
@@ -597,7 +825,7 @@ function bind() {
   $('#btnDelProj').onclick = async () => {
     const p = proj(), its = pItems();
     if (!confirm(`Delete project "${p.name}" and its ${its.length} snag(s)? Back up first if unsure.`)) return;
-    for (const i of its) { for (const id of i.photos || []) await del('photos', id); await del('items', i.id); }
+    for (const i of its) { for (const id of [...(i.photos || []), ...(i.afterPhotos || [])]) await del('photos', id); await del('items', i.id); }
     await del('projects', p.id); S.items = S.items.filter(i => i.projectId !== p.id); S.projects = S.projects.filter(x => x.id !== p.id);
     if (!S.projects.length) { const np = newProject('My first project'); await put('projects', np); S.projects.push(np); }
     await setProject(S.projects[0].id); toast('Project deleted');
@@ -606,7 +834,9 @@ function bind() {
   $('#fileRestore').onchange = e => { if (e.target.files[0]) restore(e.target.files[0]); e.target.value = ''; };
 
   $('#repStatuses').onchange = buildReport; ['#repPhotos', '#repNotes', '#repSig'].forEach(s => $(s).onchange = buildReport);
-  $('#btnPrint').onclick = async () => { $('#printRoot').innerHTML = `<div class="reportwrap">${await buildReport()}</div>`; setTimeout(() => window.print(), 300); };
+  $('#btnPrint').onclick = async () => { $('#printRoot').classList.remove('pdf-mode'); $('#printRoot').innerHTML = `<div class="reportwrap">${await buildReport()}</div>`; setTimeout(() => window.print(), 300); };
+  $('#btnProjectPdf').onclick = () => exportProjectPdf();
+  $('#btnPrintProject').onclick = () => printProjectPdf();
   $('#btnCsv').onclick = () => { download(`snags-${slug(proj().name)}-${todayISO()}.csv`, makeCSV(), 'text/csv;charset=utf-8'); toast('CSV downloaded'); };
   if (navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.csv', { type: 'text/csv' })] })) {
     $('#btnShare').hidden = false;
