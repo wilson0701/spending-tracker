@@ -70,7 +70,7 @@
     <section id="view-report" class="view">
       <div class="card">
         <h2>Snag report</h2>
-        <p class="muted">Builds a clean report you can save as PDF (Print → Save as PDF) or send.</p>
+        <p class="muted">Export a project PDF with a cover page and one page per defect: before and after photos, rectification method, and who closed it. On iPhone use Print → Save as PDF or Share → Save to Files. You can also download the PDF file directly.</p>
         <div class="grid2">
           <label>Include statuses<div class="checks" id="repStatuses"></div></label>
           <label>Options
@@ -81,11 +81,14 @@
             </div>
           </label>
         </div>
-        <div class="row gap">
-          <button class="btn primary" id="btnPrint">Print / Save PDF</button>
+        <div class="row gap wrap">
+          <button class="btn primary" id="btnProjectPdf">Export project PDF</button>
+          <button class="btn" id="btnPrintProject">Print project PDF</button>
+          <button class="btn" id="btnPrint">Print summary table</button>
           <button class="btn" id="btnCsv">Export CSV</button>
           <button class="btn" id="btnShare" hidden>Share CSV</button>
         </div>
+        <p class="muted small" id="pdfStatus" style="margin-top:8px"></p>
       </div>
       <div id="reportPreview" class="reportwrap"></div>
     </section>
@@ -124,7 +127,7 @@
       <div class="card">
         <h2>Install on your phone</h2>
         <p class="muted"><b>iPhone:</b> open in Safari → Share → <i>Add to Home Screen</i>. <b>Android / desktop Chrome or Edge:</b> menu → <i>Install app</i>. Works offline after the first visit.</p>
-        <p class="muted small">SnagPad v1.1 · No account, no cloud, no tracking.</p>
+        <p class="muted small">SnagPad v1.2 · No account, no cloud, no tracking.</p>
       </div>
     </section>
   </main>
@@ -141,12 +144,25 @@
       <button type="submit" class="link strong" id="itemSave">Save</button>
     </div>
     <div class="sheetbody">
-      <div class="photos" id="photoStrip">
-        <label class="addphoto" title="Add photo">
-          <svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-          <span>Photo</span>
-          <input type="file" id="photoInput" accept="image/*" multiple hidden>
-        </label>
+      <div class="photogroup">
+        <div class="photolabel">Before photos</div>
+        <div class="photos" id="photoStrip">
+          <label class="addphoto" title="Add before photo">
+            <svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            <span>Before</span>
+            <input type="file" id="photoInput" accept="image/*" multiple hidden>
+          </label>
+        </div>
+      </div>
+      <div class="photogroup">
+        <div class="photolabel after">After photos (rectification)</div>
+        <div class="photos" id="afterStrip">
+          <label class="addphoto after" title="Add after photo">
+            <svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            <span>After</span>
+            <input type="file" id="afterInput" accept="image/*" multiple hidden>
+          </label>
+        </div>
       </div>
       <div class="form">
         <label>Description<textarea id="iTitle" rows="2" required placeholder="e.g. Hairline crack on wall below window"></textarea></label>
@@ -161,6 +177,16 @@
           <label>Due date<input id="iDue" type="date"></label>
         </div>
         <label>Notes<textarea id="iNotes" rows="3" placeholder="Rectification required, reference drawing, etc."></textarea></label>
+        <div class="rectbox">
+          <div class="photolabel after">Rectification</div>
+          <label>Rectification method<textarea id="iRectMethod" rows="3" placeholder="e.g. Rake out crack, fill with approved mortar, and repaint the whole wall panel."></textarea></label>
+          <div class="grid2">
+            <label>Rectified by<input id="iRectBy" placeholder="Name of the person who fixed it" maxlength="40"></label>
+            <label>Date rectified<input id="iRectAt" type="date"></label>
+          </div>
+          <button type="button" class="btn done" id="btnMarkDone">Mark as Done</button>
+          <p class="muted small">Marks this defect Done, fills in your name and today's date, and keeps the after photos with the original before photos.</p>
+        </div>
         <p class="muted small" id="iMeta"></p>
       </div>
       <div class="row gap wrap">
@@ -232,6 +258,7 @@
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <div id="printRoot"></div>
+<script src="vendor/jspdf.umd.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
