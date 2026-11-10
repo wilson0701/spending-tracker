@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SnagPad — Offline Snag List</title>
+<meta name="description" content="Offline snag / punch list with photo markup and PDF reports.">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SnagPad">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="data:image/png;base64,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">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="toprow">
+    <button class="projbtn" id="projBtn" aria-label="Switch project">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h11l5 5v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 13l3 3 6-6" fill="none" stroke="#facc15" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+      <span class="projtext"><small>Project</small><b id="projName">—</b></span>
+      <svg class="chev" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+    </button>
+    <button class="sharebtn" id="shareBtn" aria-label="Share project with your team"><svg viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5M5 13v7h14v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Share</button>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button data-view="list" class="on">Snags</button>
+      <button data-view="summary">Summary</button>
+      <button data-view="report">Report</button>
+      <button data-view="settings">Settings</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- LIST -->
+    <section id="view-list" class="view on">
+      <div class="toolbar">
+        <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2"/></svg>
+          <input id="q" type="search" placeholder="Search snags, locations, trades…" autocomplete="off"></div>
+        <div class="chips" id="statusChips"></div>
+        <div class="filters">
+          <select id="fTrade"><option value="">All trades</option></select>
+          <select id="fPrio"><option value="">All priorities</option></select>
+          <select id="fSort">
+            <option value="new">Newest first</option>
+            <option value="old">Oldest first</option>
+            <option value="prio">Priority</option>
+            <option value="due">Due date</option>
+            <option value="loc">Location</option>
+          </select>
+        </div>
+      </div>
+      <div id="list" class="list"></div>
+      <div id="empty" class="empty" hidden>
+        <div class="emptyart">📋</div>
+        <h3>No snags yet</h3>
+        <p>Tap <b>+</b> to log your first defect. Take a photo, mark it up, and you're done in seconds.</p>
+      </div>
+    </section>
+
+    <!-- SUMMARY -->
+    <section id="view-summary" class="view">
+      <div id="summary"></div>
+    </section>
+
+    <!-- REPORT -->
+    <section id="view-report" class="view">
+      <div class="card">
+        <h2>Snag report</h2>
+        <p class="muted">Builds a clean report you can save as PDF (Print → Save as PDF) or send.</p>
+        <div class="grid2">
+          <label>Include statuses<div class="checks" id="repStatuses"></div></label>
+          <label>Options
+            <div class="checks">
+              <label class="ck"><input type="checkbox" id="repPhotos" checked> Photos</label>
+              <label class="ck"><input type="checkbox" id="repNotes" checked> Notes</label>
+              <label class="ck"><input type="checkbox" id="repSig" checked> Sign-off box</label>
+            </div>
+          </label>
+        </div>
+        <div class="row gap">
+          <button class="btn primary" id="btnPrint">Print / Save PDF</button>
+          <button class="btn" id="btnCsv">Export CSV</button>
+          <button class="btn" id="btnShare" hidden>Share CSV</button>
+        </div>
+      </div>
+      <div id="reportPreview" class="reportwrap"></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="view">
+      <div class="card">
+        <h2>Project details</h2>
+        <div class="form">
+          <label>Project name<input id="pName"></label>
+          <label>Client / owner<input id="pClient"></label>
+          <label>Site address<input id="pAddr"></label>
+          <label>Inspected by<input id="pBy"></label>
+          <label>Snag ID prefix<input id="pPrefix" maxlength="6" placeholder="S"></label>
+          <label>Trades (comma separated)<textarea id="pTrades" rows="3"></textarea></label>
+        </div>
+        <div class="row gap"><button class="btn primary" id="btnSaveProj">Save project</button>
+          <button class="btn danger" id="btnDelProj">Delete project</button></div>
+      </div>
+      <div class="card">
+        <h2>My name &amp; team sharing</h2>
+        <p class="muted">Your name is saved on each snag you add or update ("Last updated by …"), and the <b>Assigned to me</b> filter uses it.</p>
+        <div class="row gap"><input id="myName" placeholder="e.g. Wilson" maxlength="40" autocomplete="name"><button class="btn primary" id="btnSaveMe">Save</button></div>
+        <p class="muted small" style="margin-top:10px">To work with a worker or subcontractor, share the project. They update it on their phone and share it back. There is no live sync: you send the latest copy to each other and SnagPad merges it.</p>
+        <button class="btn" id="btnOpenShare">Share / import a project…</button>
+      </div>
+      <div class="card">
+        <h2>Backup &amp; restore</h2>
+        <p class="muted">Everything stays on this device. Back up regularly, or move a project to another phone or laptop.</p>
+        <div class="row gap">
+          <button class="btn" id="btnBackup">Back up all (JSON)</button>
+          <label class="btn">Restore from backup<input type="file" id="fileRestore" accept=".json,application/json" hidden></label>
+        </div>
+        <p class="muted small" id="storageInfo"></p>
+      </div>
+      <div class="card">
+        <h2>Install on your phone</h2>
+        <p class="muted"><b>iPhone:</b> open in Safari → Share → <i>Add to Home Screen</i>. <b>Android / desktop Chrome or Edge:</b> menu → <i>Install app</i>. Works offline after the first visit.</p>
+        <p class="muted small">SnagPad v1.1 · No account, no cloud, no tracking.</p>
+      </div>
+    </section>
+  </main>
+
+  <button class="fab" id="fab" aria-label="Add snag"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>
+</div>
+
+<!-- ITEM EDITOR -->
+<dialog id="dlgItem" class="sheet">
+  <form method="dialog" id="itemForm">
+    <div class="sheethead">
+      <button type="button" class="link" id="itemCancel">Cancel</button>
+      <b id="itemTitle">New snag</b>
+      <button type="submit" class="link strong" id="itemSave">Save</button>
+    </div>
+    <div class="sheetbody">
+      <div class="photos" id="photoStrip">
+        <label class="addphoto" title="Add photo">
+          <svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          <span>Photo</span>
+          <input type="file" id="photoInput" accept="image/*" multiple hidden>
+        </label>
+      </div>
+      <div class="form">
+        <label>Description<textarea id="iTitle" rows="2" required placeholder="e.g. Hairline crack on wall below window"></textarea></label>
+        <div class="grid2">
+          <label>Location<input id="iLoc" list="dlLoc" placeholder="Level 2 / Unit 2-05 / Bath"></label>
+          <label>Trade<input id="iTrade" list="dlTrade" placeholder="Plastering"></label>
+        </div>
+        <label>Priority<div class="seg" id="iPrio"></div></label>
+        <label>Status<div class="seg" id="iStatus"></div></label>
+        <div class="grid2">
+          <label>Assigned to<input id="iWho" list="dlWho" placeholder="Subcontractor / person"></label>
+          <label>Due date<input id="iDue" type="date"></label>
+        </div>
+        <label>Notes<textarea id="iNotes" rows="3" placeholder="Rectification required, reference drawing, etc."></textarea></label>
+        <p class="muted small" id="iMeta"></p>
+      </div>
+      <div class="row gap wrap">
+        <button type="button" class="btn primary" id="itemSaveNext">Save &amp; add next</button>
+        <button type="button" class="btn" id="itemDup">Duplicate</button>
+        <button type="button" class="btn danger" id="itemDelete">Delete</button>
+      </div>
+    </div>
+  </form>
+  <datalist id="dlLoc"></datalist><datalist id="dlTrade"></datalist><datalist id="dlWho"></datalist>
+</dialog>
+
+<!-- MARKUP -->
+<dialog id="dlgMark" class="full">
+  <div class="markhead">
+    <button class="link" id="markCancel">Cancel</button>
+    <div class="tools" id="markTools">
+      <button data-tool="pen" class="on" title="Pen">✏️</button>
+      <button data-tool="arrow" title="Arrow">↗</button>
+      <button data-tool="circle" title="Circle">◯</button>
+      <span class="sw" data-c="#ef4444" style="--c:#ef4444"></span>
+      <span class="sw" data-c="#facc15" style="--c:#facc15"></span>
+      <span class="sw" data-c="#ffffff" style="--c:#ffffff"></span>
+      <button id="markUndo" title="Undo">↶</button>
+      <button id="markDelPhoto" title="Delete photo">🗑</button>
+    </div>
+    <button class="link strong" id="markSave">Done</button>
+  </div>
+  <div class="markstage"><canvas id="markCanvas"></canvas></div>
+</dialog>
+
+<!-- PROJECTS -->
+<dialog id="dlgProj" class="sheet small">
+  <div class="sheethead"><span></span><b>Projects</b><button class="link" id="projClose">Close</button></div>
+  <div class="sheetbody">
+    <div id="projList" class="projlist"></div>
+    <div class="row gap"><input id="newProjName" placeholder="New project name"><button class="btn primary" id="btnNewProj">Add</button></div>
+  </div>
+</dialog>
+
+<!-- SHARE -->
+<dialog id="dlgShare" class="sheet small">
+  <div class="sheethead"><span></span><b>Share project</b><button class="link" id="shareClose">Close</button></div>
+  <div class="sheetbody">
+    <p class="muted small">Send <b id="shareProjName"></b> to a worker or colleague. They open it in SnagPad, update the snags and share it back to you. <b>No live sync:</b> each person sends their latest copy, and SnagPad merges it. For each snag the newest edit wins, and nothing is deleted.</p>
+    <div class="form"><label>My name<input id="shareMe" placeholder="e.g. Wilson" maxlength="40"></label></div>
+    <div class="row gap wrap">
+      <button class="btn primary" id="btnShareFile">Share file (with photos)</button>
+      <button class="btn" id="btnShareLink">Share as link (no photos)</button>
+    </div>
+    <div id="linkBox" hidden style="margin-top:10px">
+      <textarea id="linkOut" rows="3" readonly></textarea>
+      <p class="small muted" id="linkWarn"></p>
+      <div class="row gap"><button class="btn" id="btnCopyLink">Copy link</button><button class="btn" id="btnSendLink" hidden>Send link…</button></div>
+    </div>
+    <hr class="sep">
+    <b>Got a project or an update?</b>
+    <p class="muted small">Open the .snagpad file you received (save it to Files first on iPhone), or paste the link.</p>
+    <div class="row gap wrap"><label class="btn">Open .snagpad file<input type="file" id="fileImport" hidden></label></div>
+    <div class="row gap" style="margin-top:8px"><input id="pasteLink" placeholder="…or paste a SnagPad link"><button class="btn" id="btnPasteLink">Import</button></div>
+  </div>
+</dialog>
+
+<!-- IMPORT PREVIEW -->
+<dialog id="dlgImport" class="sheet small">
+  <div class="sheethead"><button class="link" id="impCancel">Cancel</button><b>Import shared project</b><button class="link strong" id="impOk">Import</button></div>
+  <div class="sheetbody"><div id="impPreview"></div></div>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="printRoot"></div>
+<script src="app.js"></script>
+</body>
+</html>
